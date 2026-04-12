@@ -1,0 +1,141 @@
+\section{Model: SVD Collaborative Filtering}
+\label{sec:model}
+
+\subsection{Singular Value Decomposition Foundation}
+
+The core mathematical foundation of our model is the Singular Value Decomposition (SVD), a classical 
+matrix factorization technique. For a matrix $R \in \mathbb{R}^{m \times n}$, the SVD decomposes it as:
+
+\[
+  R = U \Sigma V^T
+\]
+
+where:
+\begin{itemize}
+  \item $U \in \mathbb{R}^{m \times m}$ contains the left singular vectors (orthonormal basis of row space).
+  \item $\Sigma \in \mathbb{R}^{m \times n}$ is a diagonal matrix of singular values, ordered in decreasing magnitude.
+  \item $V \in \mathbb{R}^{n \times n}$ contains the right singular vectors (orthonormal basis of column space).
+\end{itemize}
+
+For recommendation, we use a truncated SVD with rank $k \ll \min(m, n)$:
+
+\[
+  R_k = U_k \Sigma_k V_k^T
+\]
+
+where $U_k$, $\Sigma_k$, $V_k$ use only the top $k$ singular values and corresponding vectors. This low-rank 
+approximation captures the dominant structure while filtering noise and enabling generalization.
+
+\subsection{Prediction Formula}
+
+Given user $u$ and item $i$, the predicted rating is:
+
+\[
+  \hat{r}_{u,i} = U_{u,:} \Sigma_k (V_k^T)_{:,i} = \sum_{j=1}^{k} \sigma_j \cdot U_{u,j} \cdot V_{i,j}
+\]
+
+where:
+\begin{itemize}
+  \item $U_{u,:}$ is the $u$-th row of $U_k$ (user's latent factor representation).
+  \item $(V_k^T)_{:,i}$ is the $i$-th column of $V_k^T$ (item's latent factor representation).
+  \item $\sigma_j$ is the $j$-th singular value (importance of the $j$-th factor).
+\end{itemize}
+
+Intuitively, each latent factor captures a dimension of user preference and item characteristics. 
+For example, one factor might represent ``action vs.~drama'', another ``popularity'', etc.~(though 
+the factors are not labeled and are discovered automatically during decomposition).
+
+\subsection{Surprise SVD Implementation}
+
+The Surprise library implements SVD using stochastic gradient descent (SGD) rather than classical 
+eigendecomposition. This is more practical for sparse, large-scale datasets and allows regularization.
+
+\subsubsection{Training Algorithm}
+
+The Surprise SVD minimizes:
+
+\[
+  L = \sum_{(u,i) \in \mathcal{R}} (r_{u,i} - \hat{r}_{u,i})^2 + \lambda \left(\|U\|_F^2 + \|V\|_F^2\right)
+\]
+
+using stochastic gradient descent. The updates for each observed rating $(u, i, r_{u,i})$ are:
+
+\begin{align}
+  U_{u.:} &\leftarrow U_{u,:} - \alpha \left(e_{u,i} \cdot V_{i,:} + \lambda \cdot U_{u,:}\right) \\
+  V_{i,:} &\leftarrow V_{i,:} - \alpha \left(e_{u,i} \cdot U_{u,:} + \lambda \cdot V_{i,:}\right)
+\end{align}
+
+where:
+\begin{itemize}
+  \item $\alpha$ is the learning rate.
+  \item $e_{u,i} = r_{u,i} - \hat{r}_{u,i}$ is the prediction error.
+  \item $\lambda$ is the regularization parameter.
+\end{itemize}
+
+SGD has proven effective for collaborative filtering and converges reliably on the MovieLens dataset.
+
+\subsubsection{Hyperparameters}
+
+The Surprise SVD implementation is configured with the following hyperparameters:
+
+\begin{table}[!h]
+  \centering
+  \small
+  \begin{tabular}{llrp{7cm}}
+    \toprule
+    \textbf{Parameter} & \textbf{Symbol} & \textbf{Value} & \textbf{Rationale} \\
+    \midrule
+    Latent factors & $k$ & 100 & Balances expressiveness and overfitting. \\
+    Learning rate & $\alpha$ & 0.005 & Provides stable convergence. \\
+    Regularization & $\lambda$ & 0.02 & Prevents overfitting on sparse data. \\
+    Epochs & $T$ & 20 & Sufficient for convergence on ML-100K. \\
+    \bottomrule
+  \end{tabular}
+  \caption{SVD hyperparameter configuration.}
+\end{table}
+
+These values are chosen based on standard practice for the MovieLens 100K dataset and are held fixed 
+for reproducibility in this laboratory setting.
+
+\subsection{Handling Unknown Users and Items}
+
+A critical design decision: how to handle predictions for users or items not in the training set?
+
+The Surprise library provides a global mean rating $\mu$ as a fallback:
+
+\[
+  \hat{r}_{u,i} = \mu \quad \text{if } u \notin \mathcal{U} \text{ or } i \notin \mathcal{I}
+\]
+
+where $\mu = \frac{1}{|\mathcal{R}|} \sum_{(u,i) \in \mathcal{R}} r_{u,i}$.
+
+This is a principled approach: for unknown entities, we predict the population average. In production, 
+more sophisticated strategies (content-based features, user/item embeddings from alternative sources) 
+could improve cold-start performance, but global mean provides a reasonable baseline.
+
+\subsection{Rating Clamping}
+
+Predictions from the model may occasionally fall outside the valid range $[1.0, 5.0]$ due to:
+\begin{itemize}
+  \item Extrapolation in factor space.
+  \item Regularization effects pushing predictions away from extremes.
+  \item Sparsity in user or item neighborhoods.
+\end{itemize}
+
+To ensure predictions always fall within the valid range, we apply post-processing:
+
+\[
+  \hat{r}_{u,i}^{\text{final}} = \max(1.0, \min(5.0, \hat{r}_{u,i}))
+\]
+
+This is simple and effective, though it discards probabilistic information. Production systems might 
+instead return calibrated confidence intervals.
+
+\subsection{Model Persistence and Serving}
+
+The trained model is serialized using Python's \code{pickle} module and stored at \code{models/svd\_model.pkl}. 
+Deserialization during API startup loads the model into memory, enabling $O(1)$ model lookup per prediction 
+(after the initial factor computations).
+
+Model versioning is handled through environment variables (\code{MODEL\_VERSION}), allowing A/B testing 
+and rollback in production deployments.

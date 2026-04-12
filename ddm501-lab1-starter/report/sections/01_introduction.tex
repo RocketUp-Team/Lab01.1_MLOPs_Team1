@@ -1,0 +1,90 @@
+\section{Introduction}
+
+Machine learning has fundamentally transformed software development, but deploying ML systems to production 
+remains a significant engineering challenge. The gap between successful model development and reliable 
+production deployment is often underestimated in academic settings. This report documents a complete, 
+end-to-end machine learning product: a movie rating prediction system that moves beyond model training 
+to address the full lifecycle of an ML system.
+
+\subsection{Motivation}
+
+The movie recommendation domain serves as an excellent case study for several reasons:
+
+\begin{enumerate}
+  \item \textbf{Clear business value}: Movie rating predictions directly support recommendation engines, 
+  which are critical for user engagement and platform success.
+  
+  \item \textbf{Rich collaborative patterns}: User-movie interactions exhibit strong collaborative signal, 
+  where similar users rate similar movies similarly. This structure makes collaborative filtering effective.
+  
+  \item \textbf{Tractable scale}: The MovieLens 100K dataset is large enough to demonstrate real-world 
+  challenges (sparsity, computation) while remaining manageable for classroom implementation.
+  
+  \item \textbf{Accessible baselines}: Collaborative filtering is well-understood and has established 
+  theoretical foundations, allowing focus on engineering best practices rather than algorithmic novelty.
+\end{enumerate}
+
+\subsection{Scope of Work}
+
+This project addresses three major engineering domains:
+
+\textbf{Machine Learning:} We train a Singular Value Decomposition (SVD) model on the MovieLens 100K dataset 
+to perform collaborative filtering. The model learns latent factor representations of users and movies, 
+enabling rating predictions for arbitrary user-movie pairs.
+
+\textbf{API and Systems Design:} We implement a RESTful API using FastAPI, providing clean interfaces 
+for health monitoring and prediction serving. The API enforces input validation, handles errors gracefully, 
+and maintains separation of concerns between model logic and request handling.
+
+\textbf{Operations and Deployment:} We containerize the system using Docker and Docker Compose, ensuring 
+portable and reproducible deployment. Health checks, environment configuration, and volume management 
+demonstrate production-ready practices.
+
+\subsection{Key Contributions}
+
+This work makes the following contributions:
+
+\begin{enumerate}
+  \item A complete, working implementation of an ML system suitable for production-like constraints.
+  
+  \item Practical demonstration of API design patterns (validation, error handling, versioning) for ML systems.
+  
+  \item Comprehensive testing strategy that balances functional validation with realistic edge case handling.
+  
+  \item Dockerized deployment with health checks, supporting both local and containerized execution.
+  
+  \item Documentation and code structure that prioritizes maintainability and team collaboration.
+\end{enumerate}
+
+\subsection{Report Structure}
+
+The remainder of this report is organized as follows:
+
+\begin{itemize}
+  \item \textbf{Section~\ref{sec:problem}}: Formal problem definition and rating prediction task formulation.
+  
+  \item \textbf{Section~\ref{sec:dataset}}: MovieLens 100K dataset characteristics, statistics, and preprocessing.
+  
+  \item \textbf{Section~\ref{sec:methodology}}: Theoretical foundations of collaborative filtering and matrix factorization.
+  
+  \item \textbf{Section~\ref{sec:model}}: Mathematical treatment of SVD and the Surprise library implementation.
+  
+  \item \textbf{Section~\ref{sec:architecture}}: System architecture covering training, artifact management, and serving.
+  
+  \item \textbf{Section~\ref{sec:api}}: RESTful API design, schema definitions, and error handling.
+  
+  \item \textbf{Section~\ref{sec:experiments}}: Training results, model evaluation, and prediction behavior analysis.
+  
+  \item \textbf{Section~\ref{sec:deployment}}: Docker containerization and deployment configuration.
+  
+  \item \textbf{Section~\ref{sec:testing}}: Testing strategy, test cases, and validation approach.
+  
+  \item \textbf{Section~\ref{sec:limitations}}: System limitations, failure modes, and future improvements.
+  
+  \item \textbf{Section~\ref{sec:conclusion}}: Summary and directions for future work.
+\end{itemize}
+
+\vspace{0.5cm}
+
+This report emphasizes the engineering and operational aspects of ML systems, recognizing that 
+successful ML in production requires far more than accurate model training.

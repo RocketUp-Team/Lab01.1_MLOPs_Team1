@@ -1,0 +1,248 @@
+\section{Testing Strategy}
+\label{sec:testing}
+
+\subsection{Testing Objectives}
+
+Testing serves multiple purposes in this project:
+
+\begin{enumerate}
+  \item \textbf{Correctness}: Verify that the system produces correct outputs.
+  
+  \item \textbf{Robustness}: Ensure the system handles edge cases and error conditions gracefully.
+  
+  \item \textbf{Regression Prevention}: Detect unintended behavior changes during development.
+  
+  \item \textbf{Documentation}: Tests serve as executable specifications of expected behavior.
+  
+  \item \textbf{Confidence}: Enable developers to refactor and improve code without fear.
+\end{enumerate}
+
+\subsection{Testing Pyramid}
+
+The testing strategy follows the testing pyramid:
+
+\begin{verbatim}
+           /\               <-- End-to-End Tests (Few, Slow)
+          /  \
+         /----\
+        / Unit \             <-- Unit Tests (Many, Fast)
+       /--------\
+\end{verbatim}
+
+\textbf{Unit Tests:} Test individual components in isolation (e.g., model wrapper).
+
+\textbf{Integration Tests:} Test interactions between components (e.g., API endpoints with mocked model).
+
+\textbf{End-to-End Tests:} Test the full system with real data and Docker (few, slow, high confidence).
+
+\subsection{Unit Test Framework}
+
+Tests are implemented using \code{pytest}, chosen for:
+
+\begin{enumerate}
+  \item Simplicity: Minimal boilerplate.
+  
+  \item Fixtures: Reusable test setup and teardown.
+  
+  \item Assertions: Clear, readable assertion syntax.
+  
+  \item Plugins: Rich ecosystem for mocking, coverage, and reporting.
+  
+  \item Parametrization: Concise way to test multiple inputs.
+\end{enumerate}
+
+\subsection{Test Organization}
+
+Tests are organized as follows:
+
+\begin{verbatim}
+  tests/
+    __init__.py
+    test_api.py          <-- API endpoint tests
+    conftest.py          <-- Shared fixtures (optional)
+\end{verbatim}
+
+\subsection{Health Endpoint Tests}
+
+\subsubsection{test\_health\_check\_returns\_200}
+
+\begin{verbatim}
+  def test_health_check_returns_200(client):
+      response = client.get("/health")
+      assert response.status_code == 200
+\end{verbatim}
+
+\textbf{Purpose:} Verify that the health endpoint is accessible and returns a successful status code.
+
+\textbf{Coverage:} Basic connectivity and endpoint routing.
+
+\subsubsection{test\_health\_check\_response\_format}
+
+\begin{verbatim}
+  def test_health_check_response_format(client):
+      response = client.get("/health")
+      data = response.json()
+      assert "status" in data
+      assert "model_loaded" in data
+      assert isinstance(data["status"], str)
+      assert isinstance(data["model_loaded"], bool)
+\end{verbatim}
+
+\textbf{Purpose:} Verify the response structure matches the API schema.
+
+\textbf{Coverage:} Schema validation and serialization.
+
+\subsection{Prediction Endpoint Tests}
+
+\subsubsection{Happy Path: test\_predict\_valid\_input}
+
+\begin{verbatim}
+  def test_predict_valid_input(client):
+      response = client.post(
+          "/predict",
+          json={"user_id": "196", "movie_id": "242"},
+      )
+      assert response.status_code == 200
+      data = response.json()
+      assert "predicted_rating" in data
+      assert 1.0 <= data["predicted_rating"] <= 5.0
+\end{verbatim}
+
+\textbf{Purpose:} Verify that valid requests produce valid predictions.
+
+\textbf{Key Assertion:} Predictions are within the required range $[1.0, 5.0]$. We do \textit{not} assert 
+exact values, as these depend on the random seed and training details.
+
+\subsubsection{test\_predict\_response\_format}
+
+\begin{verbatim}
+  def test_predict_response_format(client):
+      response = client.post(
+          "/predict",
+          json={"user_id": "196", "movie_id": "242"},
+      )
+      assert response.status_code == 200
+      data = response.json()
+      assert "user_id" in data
+      assert "movie_id" in data
+      assert "predicted_rating" in data
+      assert "model_version" in data
+\end{verbatim}
+
+\textbf{Purpose:} Verify all required response fields are present.
+
+\subsubsection{Validation Tests}
+
+\textbf{test\_predict\_missing\_user\_id:}
+\begin{verbatim}
+  def test_predict_missing_user_id(client):
+      response = client.post("/predict", json={"movie_id": "242"})
+      assert response.status_code == 422
+\end{verbatim}
+
+\textbf{test\_predict\_missing\_movie\_id:}
+\begin{verbatim}
+  def test_predict_missing_movie_id(client):
+      response = client.post("/predict", json={"user_id": "196"})
+      assert response.status_code == 422
+\end{verbatim}
+
+\textbf{Purpose:} Verify that invalid requests are rejected with 422 (Unprocessable Entity).
+
+\textbf{Coverage:} Input validation and error handling.
+
+\subsubsection{Model Unavailability Test}
+
+\begin{verbatim}
+  def test_predict_model_unavailable(client):
+      # Simulate model not being loaded
+      # This test would require mocking or environment setup
+      # Expected: status_code == 503
+\end{verbatim}
+
+\textbf{Purpose:} Verify graceful handling when the model is not loaded.
+
+\textbf{Challenge:} In tests, the model is loaded during startup. Comprehensive testing of this case 
+requires either mocking or running tests with a deliberately broken model artifact.
+
+\subsection{Running Tests}
+
+Tests are executed using pytest:
+
+\begin{verbatim}
+  # Run all tests
+  pytest tests/ -v
+  
+  # Run with coverage report
+  pytest tests/ -v --cov=app --cov-report=html
+  
+  # Run specific test file
+  pytest tests/test_api.py -v
+  
+  # Run specific test
+  pytest tests/test_api.py::TestPredictEndpoint::test_predict_valid_input -v
+\end{verbatim}
+
+\subsection{Test Fixtures}
+
+The \code{client} fixture provides a TestClient for making requests without spinning up a live server:
+
+\begin{verbatim}
+  @pytest.fixture(scope="module")
+  def client():
+      with TestClient(app) as c:
+          yield c
+\end{verbatim}
+
+\textbf{Advantages:}
+\begin{itemize}
+  \item Fast: No network overhead.
+  \item Isolated: Each test runs in a fresh application context.
+  \item Deterministic: Tests are reproducible and not affected by network conditions.
+\end{itemize}
+
+\subsection{Coverage Goals}
+
+Target coverage metrics:
+
+\begin{itemize}
+  \item \textbf{API endpoints}: 100\% of critical paths (health, predict).
+  
+  \item \textbf{Model wrapper}: All methods tested with both valid and error inputs.
+  
+  \item \textbf{Schemas}: Validation and serialization tested.
+  
+  \item \textbf{Error handling}: All error paths tested (missing model, invalid input).
+\end{itemize}
+
+\subsection{Continuous Integration}
+
+In production, tests are run automatically:
+
+\begin{enumerate}
+  \item \textbf{Pre-commit}: Lightweight tests run locally before committing.
+  
+  \item \textbf{Pull Request}: Full test suite runs on every pull request.
+  
+  \item \textbf{Merge}: Tests pass before merging to main branch.
+  
+  \item \textbf{Deployment}: Tests pass before deploying to production.
+\end{enumerate}
+
+This workflow prevents regression and ensures code quality.
+
+\subsection{Limitations of Unit Testing}
+
+While comprehensive, unit tests have limitations:
+
+\begin{enumerate}
+  \item \textbf{Model behavior}: Tests verify API correctness but not prediction quality.
+  
+  \item \textbf{Docker isolation}: Tests run on local runtime, not in Docker.
+  
+  \item \textbf{Dataset changes}: Tests pass with the current dataset but may fail if data changes.
+  
+  \item \textbf{Latency}: Tests don't measure performance under load.
+\end{enumerate}
+
+These gaps are addressed by integration tests, load tests, and production monitoring.

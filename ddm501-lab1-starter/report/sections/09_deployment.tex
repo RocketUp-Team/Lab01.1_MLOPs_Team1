@@ -1,0 +1,197 @@
+\section{Deployment with Docker}
+\label{sec:deployment}
+
+\subsection{Containerization Strategy}
+
+Containerization ensures the application runs identically across development, testing, and production 
+environments. Docker provides:
+
+\begin{enumerate}
+  \item \textbf{Consistency}: Identical runtime environment across machines.
+  
+  \item \textbf{Isolation}: Application dependencies don't interfere with host or other containers.
+  
+  \item \textbf{Portability}: Images can be deployed on any system with Docker.
+  
+  \item \textbf{Scalability}: Orchestrators (Kubernetes, Swarm) manage multiple container instances.
+  
+  \item \textbf{Reproducibility}: Applications are versioned and immutable.
+\end{enumerate}
+
+\subsection{Dockerfile Design}
+
+The Dockerfile follows best practices:
+
+\subsubsection{Multi-Stage Builds (Future Enhancement)}
+
+The current Dockerfile uses a single stage. For production, multi-stage builds can reduce image size:
+
+\begin{verbatim}
+  FROM python:3.10-slim AS builder
+  # Install dependencies, build wheels
+  
+  FROM python:3.10-slim
+  # Copy only wheels, reduce final image size
+\end{verbatim}
+
+This is deferred to production deployment.
+
+\subsubsection{Layer Caching Optimization}
+
+Layers are ordered to maximize cache efficiency:
+
+\begin{enumerate}
+  \item Install system packages (rarely changes).
+  \item Copy \code{requirements.txt} (changes less frequently).
+  \item Install Python dependencies (influenced by requirements.txt).
+  \item Copy application code (changes frequently).
+\end{enumerate}
+
+This ordering ensures that code changes don't invalidate the expensive dependency installation layer.
+
+\subsubsection{Image Size and Security}
+
+The Dockerfile uses \code{python:3.10-slim}, which is $\approx 150$ MB (vs.~$\approx 900$ MB for \code{python:3.10}). 
+Minimal base images reduce:
+
+\begin{itemize}
+  \item Deployment time (less data to transfer).
+  \item Storage requirements.
+  \item Attack surface (fewer system tools).
+\end{itemize}
+
+\subsection{Health Checks}
+
+The Dockerfile includes a HEALTHCHECK directive:
+
+\begin{verbatim}
+  HEALTHCHECK --interval=30s --timeout=10s 
+    --start-period=5s --retries=3 \
+    CMD curl -fsS http://localhost:8000/health || exit 1
+\end{verbatim}
+
+\textbf{Parameters:}
+\begin{itemize}
+  \item \code{--interval=30s}: Check health every 30 seconds.
+  \item \code{--timeout=10s}: Consider check failed if no response in 10 seconds.
+  \item \code{--start-period=5s}: Allow 5 seconds for application startup before checking.
+  \item \code{--retries=3}: Mark container unhealthy after 3 consecutive failed checks.
+\end{itemize}
+
+\textbf{Health Check Logic:}
+The check calls \code{curl} to the \code{/health} endpoint. Exit code 0 (success) marks the container healthy; 
+any other exit code marks it unhealthy.
+
+Container orchestrators use health status to:
+\begin{itemize}
+  \item Restart unhealthy containers.
+  \item Route traffic away from degraded instances.
+  \item Trigger alerts to operators.
+\end{itemize}
+
+\subsection{Docker Compose Orchestration}
+
+Docker Compose simplifies multi-container deployments and local testing:
+
+\subsubsection{Service Definition}
+
+\begin{verbatim}
+  version: '3.8'
+  
+  services:
+    api:
+      build: .                           # Build from Dockerfile
+      ports:
+        - "8000:8000"                    # Map port 8000
+      volumes:
+        - ./models:/app/models           # Mount model artifact
+      environment:
+        - MODEL_PATH=/app/models/svd_model.pkl  # Config
+      restart: unless-stopped            # Auto-restart policy
+\end{verbatim}
+
+\subsubsection{Volume Management}
+
+The \code{./models:/app/models} volume mount enables:
+
+\begin{itemize}
+  \item \textbf{Shared state}: The model artifact persists across container restarts.
+  
+  \item \textbf{Model updates}: New model artifacts can be deployed by updating the local file 
+  (no container rebuild).
+  
+  \item \textbf{Development workflow}: Local changes to the model are immediately reflected in the 
+  running container.
+\end{itemize}
+
+\subsubsection{Restart Policy}
+
+The \code{restart: unless-stopped} policy ensures:
+
+\begin{itemize}
+  \item \textbf{Resilience}: If the application crashes, Docker automatically restarts it.
+  
+  \item \textbf{Control}: Explicit \code{docker compose down} stops all services (not restarted).
+  
+  \item \textbf{Development-friendly}: Unlike \code{restart: always}, this allows developers to stop 
+  services without fighting automatic restarts.
+\end{itemize}
+
+\subsection{Environment Variables}
+
+Configuration is managed through environment variables, enabling deployment flexibility:
+
+\begin{itemize}
+  \item \code{MODEL\_PATH}: Path to the pickled model (default: \code{models/svd\_model.pkl}).
+  \item \code{MODEL\_VERSION}: Version string returned in responses (default: \code{1.0.0}).
+  \item \code{HOST}: Bind address for the API server (default: \code{0.0.0.0}).
+  \item \code{PORT}: Bind port (default: \code{8000}).
+  \item \code{DEBUG}: Enable debug mode (default: \code{false}).
+\end{itemize}
+
+This design enables:
+\begin{itemize}
+  \item Different configurations for dev/staging/production without code changes.
+  \item Secrets management outside of code/images (credentials can be injected at runtime).
+  \item A/B testing by deploying multiple versions with different \code{MODEL\_VERSION} values.
+\end{itemize}
+
+\subsection{Deployment Workflow}
+
+A typical deployment follows this workflow:
+
+\begin{enumerate}
+  \item \textbf{Build}: \code{docker compose build} creates the image.
+  
+  \item \textbf{Start}: \code{docker compose up -d} starts the container in background.
+  
+  \item \textbf{Verify}: \code{curl http://localhost:8000/health} checks health.
+  
+  \item \textbf{Test}: Run integration tests or manual tests.
+  
+  \item \textbf{Stop}: \code{docker compose down} cleanly stops the service.
+\end{enumerate}
+
+This workflow is fast, repeatable, and suitable for CI/CD pipelines.
+
+\subsection{Production Considerations}
+
+For production deployments, additional considerations include:
+
+\begin{enumerate}
+  \item \textbf{Logging}: Aggregate containers logs to a centralized service (e.g., ELK, Splunk).
+  
+  \item \textbf{Monitoring}: Track metrics (CPU, memory, latency) using Prometheus/Grafana.
+  
+  \item \textbf{Orchestration}: Use Kubernetes for multi-node deployments and auto-scaling.
+  
+  \item \textbf{Secrets Management}: Use Docker secrets or external vaults (Vault, AWS Secrets Manager).
+  
+  \item \textbf{Image Registry}: Push images to a registry (Docker Hub, ECR, GCR) for distribution.
+  
+  \item \textbf{Network Policy}: Implement network policies to restrict inter-container and external communication.
+  
+  \item \textbf{Resource Limits}: Set CPU and memory limits to prevent resource exhaustion.
+\end{enumerate}
+
+These are deferred to operational governance.

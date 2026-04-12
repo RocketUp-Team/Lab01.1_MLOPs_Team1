@@ -1,0 +1,209 @@
+\section{Limitations and Future Work}
+\label{sec:limitations}
+
+\subsection{Cold Start Problem}
+
+The cold start problem is a fundamental limitation of collaborative filtering:
+
+\textbf{New User Cold Start:}
+A new user with no history cannot be modeled using collaborative filtering. The system falls back to 
+the global mean rating, which is suboptimal. Real-world solutions include:
+
+\begin{itemize}
+  \item \textit{Content-based filtering}: Use item metadata (genre, cast) to make initial recommendations.
+  
+  \item \textit{Hybrid approaches}: Combine collaborative and content-based methods.
+  
+  \item \textit{Active learning}: Ask new users to rate items to quickly accumulate history.
+  
+  \item \textit{Knowledge graph integration}: Leverage external knowledge (social graphs, user profiles).
+\end{itemize}
+
+\textbf{New Item Cold Start:}
+Similarly, newly released items have no rating history. Solutions include:
+
+\begin{itemize}
+  \item \textit{Release boost}: Temporarily promote new items to accumulate ratings faster.
+  
+  \item \textit{Content-based similarity}: Recommend new items similar to items the user enjoyed.
+  
+  \item \textit{Temporal modeling}: Track how ratings evolve over time and extrapolate for new items.
+\end{itemize}
+
+\subsection{Data Sparsity}
+
+The rating matrix is 93.7\% sparse. This has implications:
+
+\begin{enumerate}
+  \item \textbf{Limited training signal}: Many users and items have few ratings, limiting factor estimation.
+  
+  \item \textbf{Genre and temporal bias}: Popular items and recent ratings dominate the training set, 
+  potentially biasing predictions.
+  
+  \item \textbf{Extrapolation uncertainty}: Predictions for users/items with sparse data are less reliable.
+\end{enumerate}
+
+\textbf{Mitigation strategies:}
+\begin{itemize}
+  \item Data augmentation (synthetic ratings based on external signals).
+  \item Ensemble methods combining multiple models.
+  \item Bayesian approaches quantifying uncertainty.
+\end{itemize}
+
+\subsection{Scalability Constraints}
+
+The current system has scalability limitations:
+
+\begin{enumerate}
+  \item \textbf{Model training}: SVD training is $O(k \times |\mathcal{R}| \times T)$, where $T$ is the number of epochs. 
+  On large datasets (billions of ratings), this becomes expensive.
+  
+  \item \textbf{Inference latency}: Each prediction requires a dense matrix multiplication, which is fast but 
+  becomes a bottleneck under extreme load (millions of predictions per second).
+  
+  \item \textbf{Model size}: Storing factors for all users and items requires memory proportional to 
+  $(|\mathcal{U}| + |\mathcal{I}|) \times k$. For billion-scale datasets, this becomes prohibitive.
+\end{enumerate}
+
+\textbf{Solutions for large scale:}
+\begin{itemize}
+  \item Distributed training (PySpark, Ray, Horovod).
+  \item Approximate inference (learned indexes, hashing).
+  \item Model compression (quantization, pruning).
+  \item Hierarchical approaches (cluster users/items first, then model within clusters).
+\end{itemize}
+
+\subsection{Model Stability and Concept Drift}
+
+The current system assumes the model is trained once and deployed indefinitely. In practice:
+
+\begin{enumerate}
+  \item \textbf{Concept drift}: User preferences and item popularity change over time. A model trained 
+  on historical data becomes stale.
+  
+  \item \textbf{New users/items}: Continuously arriving new users and items are not reflected in the 
+  static model.
+  
+  \item \textbf{Feedback loops}: Recommendations influence user behavior, which in turn influences 
+  future recommendations (potential bias amplification).
+\end{enumerate}
+
+\textbf{Production strategies:}
+\begin{itemize}
+  \item \textit{Periodic retraining}: Retrain the model weekly or daily on fresh data.
+  
+  \item \textit{Online learning}: Incrementally update the model with new ratings.
+  
+  \item \textit{A/B testing}: Test new models on subsets of users before full deployment.
+  
+  \item \textit{Monitoring}: Track prediction quality metrics and alert on degradation.
+\end{itemize}
+
+\subsection{Fairness and Bias}
+
+Recommendation systems can perpetuate or amplify biases:
+
+\begin{enumerate}
+  \item \textbf{Popularity bias}: Popular items receive more ratings and are more visible in recommendations, 
+  creating a rich-get-richer dynamic.
+  
+  \item \textbf{Filter bubbles}: Recommending items similar to a user's history can reinforce existing 
+  preferences and limit diversity.
+  
+  \item \textbf{Demographic bias}: If the training data reflects demographic stereotypes, recommendations 
+  will propagate these biases.
+  
+  \item \textbf{Cold-start amplification}: New items and new users may be underrepresented due to cold-start 
+  effects, creating systemic disadvantage.
+\end{enumerate}
+
+\textbf{Mitigation approaches:}
+\begin{itemize}
+  \item \textit{Diversity objectives}: Optimize for diversity in addition to accuracy.
+  
+  \item \textit{Fair allocation}: Quota-based recommendations to ensure representation.
+  
+  \item \textit{Explainability}: Help users understand why items were recommended.
+  
+  \item \textit{User control}: Allow users to adjust recommendation preferences and opt-out.
+  
+  \item \textit{Audit and monitoring}: Regularly audit recommendations for bias.
+\end{itemize}
+
+This system does not explicitly address fairness; it is an important consideration for production systems.
+
+\subsection{Interpretability and Explainability}
+
+While SVD factors are more interpretable than neural network embeddings, they remain opaque:
+
+\begin{enumerate}
+  \item \textbf{Factor semantics}: The $k$ latent factors represent dimensions of preference space, but 
+  their meaning is not labeled or easily understood.
+  
+  \item \textbf{Prediction explanation}: Why did the model predict 4.0 for ``user 196, movie 242''? 
+  The answer involves complex factor combinations.
+  
+  \item \textbf{Error attribution}: When predictions are wrong, it's difficult to diagnose the cause 
+  (sparse data? model overfitting? concept drift?).
+\end{enumerate}
+
+\textbf{Solutions:}
+\begin{itemize}
+  \item \textit{Post-hoc explanations}: Factor analysis, nearest neighbor look-ups, LIME/SHAP.
+  
+  \item \textit{Attention mechanisms}: Newer models provide interpretable attention weights.
+  
+  \item \textit{User interviews}: Qualitative feedback from users about recommendation quality.
+\end{itemize}
+
+\subsection{Privacy Considerations}
+
+Recommendation systems may raise privacy concerns:
+
+\begin{enumerate}
+  \item \textbf{User tracking}: Collecting and storing user ratings reveals preferences.
+  
+  \item \textbf{Model inversion}: Sophisticated attacks may infer user data from models.
+  
+  \item \textbf{Data retention}: Long-term storage of user behavior creates security risks.
+  
+  \item \textbf{Regulatory compliance}: GDPR, CCPA, and other regulations impose requirements on 
+  data handling and user rights.
+\end{enumerate}
+
+\textbf{Practices:}
+\begin{itemize}
+  \item \textit{Data minimization}: Collect only necessary data.
+  
+  \item \textit{Anonymization}: Hash user IDs and remove identifying information.
+  
+  \item \textit{Federated learning}: Train models on decentralized data without collecting it centrally.
+  
+  \item \textit{Right to explanation}: Provide users with explanations of recommendations.
+  
+  \item \textit{Right to deletion}: Allow users to request deletion of their data.
+\end{itemize}
+
+\subsection{Future Research Directions}
+
+Promising directions for extending this system:
+
+\begin{enumerate}
+  \item \textbf{Deep learning}: Implement neural collaborative filtering (NCF, autoencoders) for improved 
+  expressiveness.
+  
+  \item \textbf{Context-aware recommendations}: Incorporate context (time, location, device) into predictions.
+  
+  \item \textbf{Explainable AI}: Develop explainability methods tailored to recommendations.
+  
+  \item \textbf{Fairness-aware recommendations}: Optimize jointly for accuracy and fairness.
+  
+  \item \textbf{Real-time learning}: Implement online learning for immediate model updates.
+  
+  \item \textbf{Metamodeling}: Learn to select and combine multiple models dynamically.
+  
+  \item \textbf{Federated recommendations}: Enable privacy-preserving distributed training.
+\end{enumerate}
+
+Despite these limitations, the current system serves as a robust baseline and production-ready implementation 
+for movie rating prediction, suitable for educational and experimental purposes.

@@ -1,0 +1,104 @@
+\section{Dataset}
+\label{sec:dataset}
+
+\subsection{MovieLens 100K Overview}
+
+The MovieLens 100K dataset is a widely-used benchmark in recommendation systems research. It was collected 
+by the GroupLens research group at the University of Minnesota over a seven-month period (Sept 19th, 1997 -- 
+April 22nd, 1998). The dataset consists of approximately 100,000 ratings provided by around 1,000 users on 
+1,700 movies.
+
+\textbf{Data Distribution:}
+\begin{itemize}
+  \item \textbf{Number of users}: 943
+  \item \textbf{Number of items (movies)}: 1,682
+  \item \textbf{Number of ratings}: 100,000
+  \item \textbf{Rating scale}: 1--5 (integer values)
+  \item \textbf{Sparsity}: $\frac{100,000}{943 \times 1,682} \approx 6.3\%$ (about 93.7\% of the matrix is missing)
+\end{itemize}
+
+The high sparsity is typical of real-world recommendation problems and is central to the challenge: 
+predicting ratings for user-item pairs that have never been observed.
+
+\subsection{Data Format and Preprocessing}
+
+The MovieLens 100K dataset is provided in a tabular format. Each row represents a single rating observation, 
+with fields:
+\begin{itemize}
+  \item User ID: integer identifier (1--943)
+  \item Item ID: integer identifier (1--1,682)
+  \item Rating: integer in $\{1, 2, 3, 4, 5\}$
+  \item Timestamp: Unix timestamp of the rating event
+\end{itemize}
+
+The \code{Surprise} library handles dataset loading and preprocessing automatically. Specifically:
+
+\begin{enumerate}
+  \item \textbf{String conversion}: User and item IDs are converted to strings for API compatibility.
+  \item \textbf{Train-test splits}: The dataset provides standard cross-validation folds (u1--u5) and 
+  alternative train-test splits (ua, ub) for benchmarking.
+  \item \textbf{No additional preprocessing}: Ratings are used as-is. No normalization, outlier removal, 
+  or feature engineering is applied in the base implementation.
+\end{enumerate}
+
+\subsection{Statistical Characteristics}
+
+Analysis of the MovieLens 100K dataset reveals:
+
+\textbf{Rating Distribution:}
+The ratings follow a roughly normal distribution with slight skew toward positive ratings. The mean rating 
+is approximately 3.5, indicating users tend to rate items they watch (selection bias).
+
+\textbf{User Activity:}
+Users vary dramatically in activity level. Some users have provided hundreds of ratings, while others 
+contributed only a handful. This heterogeneity impacts model training: high-activity users provide more 
+signal, while low-activity (cold-start) users are harder to model.
+
+\textbf{Item Popularity:}
+Similarly, movies vary in the number of ratings they receive. Popular movies have many ratings, enabling 
+reliable factor estimation, while niche movies have few ratings and are prone to cold-start effects.
+
+\textbf{Temporal Characteristics:}
+Though the dataset is small by modern standards and temporally localized to 1997--1998, the timestamps allow 
+for temporal analysis. For this project, temporal information is not utilized, though it could support 
+cold-start improvements or drift detection in production.
+
+\subsection{Data Assumptions and Limitations}
+
+Important assumptions about the data:
+
+\begin{enumerate}
+  \item \textbf{Ratings represent user preferences}: We assume that user ratings reflect their true preferences 
+  (no gaming or manipulation).
+  
+  \item \textbf{Collaborative signal exists}: We assume that similar users rate similar movies similarly. 
+  This underpins the collaborative filtering approach.
+  
+  \item \textbf{Data is clean}: The dataset is curated and does not require extensive cleaning. In production, 
+  data validation and quality checks would be essential.
+  
+  \item \textbf{Static snapshot}: The dataset is treated as a static snapshot. In production, the training 
+  data would be continuously refreshed.
+  
+  \item \textbf{No side information}: We use only ratings. User demographics, movie metadata, and tags are 
+  not utilized (though they could improve predictions).
+\end{enumerate}
+
+\subsection{Sparsity and Its Implications}
+
+The sparsity of the rating matrix is the central challenge in recommendation systems:
+
+\[
+  \text{Sparsity} = 1 - \frac{|\mathcal{R}|}{|\mathcal{U}| \times |\mathcal{I}|} = 1 - \frac{100,000}{943 \times 1,682} \approx 93.7\%
+\]
+
+Sparsity implies that:
+\begin{itemize}
+  \item Most user-item pairs have no observed rating.
+  \item The rating matrix cannot be inverted or directly analyzed using standard matrix methods.
+  \item Extrapolation from limited information (latent factors) is necessary.
+  \item Cold-start (new users or items with few ratings) is a persistent problem.
+\end{itemize}
+
+Collaborative filtering through matrix factorization addresses sparsity by learning low-rank latent 
+representations (Section~\ref{sec:methodology}).
