@@ -1,21 +1,33 @@
-"""
+"""\
 Script to train and save the movie rating prediction model.
 
 This script:
 1. Loads the MovieLens 100K dataset (via Surprise built-in downloader)
 2. Trains an SVD model using collaborative filtering (matrix factorization)
-3. (Optional) Evaluates the model with cross-validation
+3. Evaluates the model with cross-validation
 4. Saves the trained model to disk
 
 Usage:
     python scripts/train_model.py
-"""
+"""\
 
 import pickle
 from pathlib import Path
 
 from surprise import Dataset, SVD
 from surprise.model_selection import cross_validate
+from surprise.builtin_datasets import download_builtin_dataset
+
+
+def load_movielens_100k():
+    """Load MovieLens 100K without interactive prompts."""
+    try:
+        return Dataset.load_builtin("ml-100k", prompt=False)
+    except OSError:
+        # Surprise would otherwise prompt for input, which breaks in non-interactive runs.
+        print("      Dataset not found locally. Downloading ml-100k...")
+        download_builtin_dataset("ml-100k")
+        return Dataset.load_builtin("ml-100k", prompt=False)
 
 
 def main() -> None:
@@ -31,11 +43,11 @@ def main() -> None:
     # Step 1: Load data
     # ----------------------------------------------------------------------
     print("\n[1/4] Loading MovieLens 100K dataset (ml-100k)...")
-    data = Dataset.load_builtin("ml-100k")
+    data = load_movielens_100k()
     print("      Dataset loaded successfully!")
 
     # ----------------------------------------------------------------------
-    # Step 2: Cross-validation (kept for assignment completeness)
+    # Step 2: Cross-validation
     # ----------------------------------------------------------------------
     print("\n[2/4] Performing cross-validation...")
     algo = SVD(
