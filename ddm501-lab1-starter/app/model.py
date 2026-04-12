@@ -50,16 +50,14 @@ class MovieRatingModel:
     
     def _load_model(self) -> None:
         """Load the trained model from disk."""
-        # TODO: Implement this method
-        # 
-        # try:
-        #     with open(self.model_path, 'rb') as f:
-        #         self.model = ???
-        #     logger.info(f"Model loaded successfully from {self.model_path}")
-        # except FileNotFoundError:
-        #     logger.error(f"Model file not found: {self.model_path}")
-        #     raise
-        pass
+        model_path = Path(self.model_path)
+        try:
+            with model_path.open("rb") as f:
+                self.model = pickle.load(f)
+            logger.info(f"Model loaded successfully from {model_path}")
+        except FileNotFoundError:
+            logger.error(f"Model file not found: {model_path}")
+            raise
     
     # =========================================================================
     # TODO 2: Implement predict method
@@ -83,11 +81,19 @@ class MovieRatingModel:
         Returns:
             Predicted rating (float between 1.0 and 5.0)
         """
-        # TODO: Implement this method
-        #
-        # prediction = self.model.predict(???, ???)
-        # return round(prediction.???, 2)
-        pass
+        if self.model is None:
+            raise RuntimeError("Model is not loaded")
+
+        prediction = self.model.predict(user_id, movie_id)
+        rating = float(prediction.est)
+
+        # Defensive: ensure rubric-required range [1, 5].
+        if rating < 1.0:
+            rating = 1.0
+        elif rating > 5.0:
+            rating = 5.0
+
+        return round(rating, 2)
     
     # =========================================================================
     # TODO 3: Implement predict_batch method
@@ -109,10 +115,7 @@ class MovieRatingModel:
         Returns:
             List of predicted ratings
         """
-        # TODO: Implement this method
-        #
-        # return [self.predict(???, ???) for ???, ??? in pairs]
-        pass
+        return [self.predict(user_id, movie_id) for user_id, movie_id in pairs]
     
     def is_loaded(self) -> bool:
         """Check if model is loaded."""

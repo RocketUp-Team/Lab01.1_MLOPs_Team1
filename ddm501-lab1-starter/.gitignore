@@ -5,6 +5,7 @@ __pycache__/
 *.so
 .Python
 venv/
+.venv/
 env/
 .env
 
@@ -27,6 +28,7 @@ htmlcov/
 # Models (large files)
 models/*.pkl
 !models/.gitkeep
+!models/svd_model.pkl
 
 # Data
 data/
@@ -41,3 +43,6 @@ data/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local temp
+.tmp/

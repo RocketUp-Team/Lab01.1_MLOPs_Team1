@@ -101,24 +101,22 @@ async def predict(request: PredictionRequest):
     Returns:
         PredictionResponse with predicted rating
     """
-    # TODO: Implement this endpoint
-    #
-    # Check if model is loaded
-    # if model is None or not model.is_loaded():
-    #     raise HTTPException(status_code=503, detail="Model not loaded")
-    #
-    # try:
-    #     rating = model.predict(???, ???)
-    #     return PredictionResponse(
-    #         user_id=???,
-    #         movie_id=???,
-    #         predicted_rating=???,
-    #         model_version=MODEL_VERSION
-    #     )
-    # except Exception as e:
-    #     logger.error(f"Prediction error: {e}")
-    #     raise HTTPException(status_code=500, detail=str(e))
-    pass
+    if model is None or not model.is_loaded():
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        rating = model.predict(request.user_id, request.movie_id)
+        return PredictionResponse(
+            user_id=request.user_id,
+            movie_id=request.movie_id,
+            predicted_rating=rating,
+            model_version=MODEL_VERSION,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Prediction error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # =============================================================================
@@ -142,20 +140,25 @@ async def predict_batch(request: BatchPredictionRequest):
     Returns:
         BatchPredictionResponse with all predicted ratings
     """
-    # TODO: Implement this endpoint (BONUS)
-    #
-    # if model is None or not model.is_loaded():
-    #     raise HTTPException(status_code=503, detail="Model not loaded")
-    #
-    # try:
-    #     results = []
-    #     for item in request.predictions:
-    #         rating = model.predict(item.user_id, item.movie_id)
-    #         results.append(PredictionResponse(...))
-    #     return BatchPredictionResponse(predictions=results, total_count=len(results))
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=str(e))
-    pass
+    if model is None or not model.is_loaded():
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        results = []
+        for item in request.predictions:
+            rating = model.predict(item.user_id, item.movie_id)
+            results.append(
+                PredictionResponse(
+                    user_id=item.user_id,
+                    movie_id=item.movie_id,
+                    predicted_rating=rating,
+                    model_version=MODEL_VERSION,
+                )
+            )
+        return BatchPredictionResponse(predictions=results, total_count=len(results))
+    except Exception as e:
+        logger.exception(f"Batch prediction error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # =============================================================================
