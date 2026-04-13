@@ -50,14 +50,17 @@ class MovieRatingModel:
     
     def _load_model(self) -> None:
         """Load the trained model from disk."""
-        model_path = Path(self.model_path)
         try:
-            with model_path.open("rb") as f:
+            with open(self.model_path, 'rb') as f:
                 self.model = pickle.load(f)
-            logger.info(f"Model loaded successfully from {model_path}")
+            logger.info(f"Model loaded successfully from {self.model_path}")
         except FileNotFoundError:
-            logger.error(f"Model file not found: {model_path}")
-            raise
+            logger.error(f"Model file not found: {self.model_path}")
+            # We don't raise here to allow the API to start in "unhealthy" state
+            self.model = None
+        except Exception as e:
+            logger.error(f"Error loading model: {e}")
+            self.model = None
     
     # =========================================================================
     # TODO 2: Implement predict method
@@ -83,17 +86,9 @@ class MovieRatingModel:
         """
         if self.model is None:
             raise RuntimeError("Model is not loaded")
-
+            
         prediction = self.model.predict(user_id, movie_id)
-        rating = float(prediction.est)
-
-        # Defensive: ensure rubric-required range [1, 5].
-        if rating < 1.0:
-            rating = 1.0
-        elif rating > 5.0:
-            rating = 5.0
-
-        return round(rating, 2)
+        return round(prediction.est, 2)
     
     # =========================================================================
     # TODO 3: Implement predict_batch method

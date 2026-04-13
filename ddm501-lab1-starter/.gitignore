@@ -5,7 +5,6 @@ __pycache__/
 *.so
 .Python
 venv/
-.venv/
 env/
 .env
 
@@ -26,10 +25,8 @@ build/
 htmlcov/
 
 # Models (large files)
-models/*.pkl
-!models/.gitkeep
-!models/svd_model.pkl
 
+!models/.gitkeep
 # Data
 data/
 *.csv
@@ -38,11 +35,8 @@ data/
 *.log
 
 # Docker
-.docker/
+
 
 # OS
 .DS_Store
 Thumbs.db
-
-# Local temp
-.tmp/
