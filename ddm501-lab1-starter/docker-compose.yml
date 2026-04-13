@@ -29,10 +29,23 @@ services:
   #   environment:
   #     - MODEL_PATH=/app/models/svd_model.pkl
   #   restart: unless-stopped
+  # api:
+  #   build: .
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - ./models:/app/models
+  #   environment:
+  #     - MODEL_PATH=/app/models/svd_model.pkl
+  #   restart: unless-stopped
   
   api:
     # TODO: Complete this service configuration
     build: .
+    # TODO: Add ports mapping
+    # TODO: Add volumes
+    # TODO: Add environment variables
+    # TODO: Add restart policy
     ports:
       - "8000:8000"
     volumes:
@@ -40,7 +53,6 @@ services:
     environment:
       - MODEL_PATH=/app/models/svd_model.pkl
     restart: unless-stopped
-
 # =============================================================================
 # BONUS: Add additional services
 # =============================================================================

@@ -4,7 +4,7 @@ Pydantic schemas for request/response validation.
 TODO: Complete the schema definitions below.
 """
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
 
@@ -19,10 +19,8 @@ from typing import List, Optional
 
 class PredictionRequest(BaseModel):
     """Request schema for prediction endpoint."""
-    model_config = ConfigDict(str_strip_whitespace=True)
-
-    user_id: str = Field(..., min_length=1, examples=["196"], description="User ID")
-    movie_id: str = Field(..., min_length=1, examples=["242"], description="Movie ID")
+    user_id: str = Field(..., json_schema_extra={"example": "196"})
+    movie_id: str = Field(..., json_schema_extra={"example": "242"})
 
 
 # =============================================================================
@@ -36,11 +34,9 @@ class PredictionRequest(BaseModel):
 
 class PredictionResponse(BaseModel):
     """Response schema for prediction endpoint."""
-    model_config = ConfigDict(protected_namespaces=())
-
     user_id: str
     movie_id: str
-    predicted_rating: float = Field(..., ge=1.0, le=5.0, description="Predicted rating (1.0-5.0)")
+    predicted_rating: float
     model_version: str
 
 
@@ -53,8 +49,6 @@ class PredictionResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     """Response schema for health check endpoint."""
-    model_config = ConfigDict(protected_namespaces=())
-
     status: str
     model_loaded: bool
 

@@ -103,19 +103,17 @@ async def predict(request: PredictionRequest):
     """
     if model is None or not model.is_loaded():
         raise HTTPException(status_code=503, detail="Model not loaded")
-
+    
     try:
         rating = model.predict(request.user_id, request.movie_id)
         return PredictionResponse(
             user_id=request.user_id,
             movie_id=request.movie_id,
             predicted_rating=rating,
-            model_version=MODEL_VERSION,
+            model_version=MODEL_VERSION
         )
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.exception(f"Prediction error: {e}")
+        logger.error(f"Prediction error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -142,22 +140,23 @@ async def predict_batch(request: BatchPredictionRequest):
     """
     if model is None or not model.is_loaded():
         raise HTTPException(status_code=503, detail="Model not loaded")
-
+    
     try:
         results = []
         for item in request.predictions:
             rating = model.predict(item.user_id, item.movie_id)
-            results.append(
-                PredictionResponse(
-                    user_id=item.user_id,
-                    movie_id=item.movie_id,
-                    predicted_rating=rating,
-                    model_version=MODEL_VERSION,
-                )
-            )
-        return BatchPredictionResponse(predictions=results, total_count=len(results))
+            results.append(PredictionResponse(
+                user_id=item.user_id,
+                movie_id=item.movie_id,
+                predicted_rating=rating,
+                model_version=MODEL_VERSION
+            ))
+        return BatchPredictionResponse(
+            predictions=results,
+            total_count=len(results)
+        )
     except Exception as e:
-        logger.exception(f"Batch prediction error: {e}")
+        logger.error(f"Batch prediction error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
