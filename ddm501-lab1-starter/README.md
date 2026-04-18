@@ -484,7 +484,7 @@ pytest tests/ -v --cov=app --cov-report=html
 
 1. Complete all TODO tasks
 2. Ensure all tests pass
-3. Push to your GitHub repository
+3. Push to your GitHub repository: [RocketUp-Team/Lab01.1_MLOPs_Team1](https://github.com/RocketUp-Team/Lab01.1_MLOPs_Team1)
 4. Submit the repository link
 
 ## Movie Rating Prediction System (DDM501-Lab1)
