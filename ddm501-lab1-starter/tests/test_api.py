@@ -8,9 +8,18 @@ from fastapi.testclient import TestClient
 from unittest.mock import patch
 
 from app.main import app
+import app.main as main_module
 
 # Create test client
 client = TestClient(app)
+
+# Fixture to ensure model is loaded before tests
+@pytest.fixture(scope="session", autouse=True)
+def load_model():
+    """Ensure model is loaded for all tests."""
+    import asyncio
+    asyncio.run(main_module.startup_event())
+    yield
 
 # =============================================================================
 # Health Check & Root Tests
@@ -98,11 +107,14 @@ class TestModelInfoEndpoint:
 # =============================================================================
 class TestBatchPredictEndpoint:
     
-    @patch("app.model.MovieRatingModel.predict_batch")
-    def test_batch_predict_multiple_items(self, mock_predict_batch):
+    @patch("app.main.model")
+    def test_batch_predict_multiple_items(self, mock_model):
         """TC_07: Test batch prediction with multiple valid items."""
-        # Giả lập kết quả trả về của model
-        mock_predict_batch.return_value = [3.5, 4.0]
+        # Mock the model's predict method
+        mock_instance = mock_model
+        mock_instance.is_loaded.return_value = True
+        # Return different predictions for each call
+        mock_instance.predict.side_effect = [3.5, 4.0]
         
         payload = {
             "predictions": [
